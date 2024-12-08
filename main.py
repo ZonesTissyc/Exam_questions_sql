@@ -67,14 +67,7 @@ def update_answer_options(*args):
         answer_combobox.config(values=[])
 
 # 切换是否复制到剪贴板的状态
-def ():
-    # 切换是否复制到剪贴板的状态
-    global copy_to_clipboard_enabled
-    copy_to_clipboard_enabled = not copy_to_clipboard_enabled
-    if copy_to_clipboard_enabled:
-        copy_button.config(text="关闭复制")
-    else:
-        copy_button.config(text="开启复制")
+
 
 
 # 创建主窗口
@@ -99,8 +92,6 @@ question_type_var = tk.StringVar()
 question_type_combobox = ttk.Combobox(root, textvariable=question_type_var, values=["选择题", "判断题", "主观题"])
 question_type_combobox.grid(row=1, column=1, padx=10, pady=10)
 
-copy_button = ttk.Button(root, text="开启复制", command=toggle_copy_to_clipboard)
-copy_button.grid(row=5, column=0, columnspan=2, padx=10, pady=10)
 
 # 创建按钮
 add_button = ttk.Button(root, text="添加", command=add_question)
