@@ -1,1 +1,33 @@
 帮我编写一个带UI界面的py脚本，用于将题目文本转换为sql插入语句。
+界面最上方是题目类型选择框，可选的有选择题、判断题、主观题。对应值为1,2,5
+选择框下方是题目文本输入框，提供用户输入题目文本。
+在输入框下方是答案选择框，其可选的内容要与题目类型相对应。如为选择题，则可选ABCD，可多选：判断题则为对或错（只能单选）。
+答案选择框下方是题目解析输入框，提供用户输入题目解析。该输入框为可选可空。
+题目解析输入框下方是“解析按钮”，点击后对题目进行解析，如果是选择题，调用
+def process_question(question_text):
+    # 解析题目文本，提取题目和选项
+    question_match = re.search(r'^(.*?)\n\n', question_text, re.DOTALL)  # 匹配第一个空行之前的内容作为题目
+    options_match = re.findall(r'([A-Z]\.\s.*?)(?=\n[A-Z]\.|$)', question_text, re.DOTALL)  # 匹配选项部分
+    
+    if not question_match or not options_match:  # 如果没有题目或选项，抛出异常
+        raise ValueError("Invalid question format: Question must include text and options (A, B, C, D).")
+    
+    question = question_match.group(1).strip()  # 提取题目内容，去掉首尾空格
+    options = {}
+    
+    # 提取选项内容并存入字典
+    for i, option in enumerate(options_match):
+        option_key = chr(65 + i)  # 转换为 A, B, C, D
+        option_value = re.sub(r'^[A-Z]\.\s', '', option).strip()  # 去掉 "A. " 等前缀
+        options[option_key] = option_value
+    
+    # 确定题目类型为选择题
+    question_type = "0"
+    
+    return question_type, question, options
+上面这个函数对题目输入框的内容进行解析，得到问题和各个选项的内容。
+解析后在最下方显示解析结果（题目类型、题目、答案、题目解析）。
+解析按钮的右边是插入按钮，点击后将解析结果转换成sql的插入语句。
+插入按钮的右边是清除按钮，点击后清空所有输入框。
+清楚按钮的右边是完成按钮，点击后将sql插入语句保存到本地文件。
+即用户多此操作后，可将多个sql插入语句保存到本地文件。
