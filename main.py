@@ -2,7 +2,29 @@ import tkinter as tk
 from tkinter import filedialog
 import re
 import pyperclip  # 用于剪贴板操作
-from process_question import process_question
+
+
+def process_question(question_text):
+    """解析选择题的题目文本"""
+    try:
+        question_match = re.search(r"^(.*?)\n\n", question_text, re.DOTALL)  # 匹配题目文本部分
+        options_match = re.findall(r"([A-Z]\.\s.*?)(?=\n[A-Z]\.|$)", question_text, re.DOTALL)  # 匹配选项
+
+        if not question_match or not options_match:
+            raise ValueError("无效的题目格式，必须包含题目和选项（A, B, C, D）。")
+
+        question = question_match.group(1).strip()
+        options = {}
+
+        for i, option in enumerate(options_match):
+            option_key = chr(65 + i)  # 转换为 A, B, C, D
+            option_value = re.sub(r"^[A-Z]\.\s", "", option).strip()
+            options[option_key] = option_value
+
+        return "1", question, options
+    except Exception as e:
+        raise ValueError(f"解析失败: {e}")
+
 
 class QuestionToSQLApp:
     def __init__(self, root):
@@ -11,8 +33,10 @@ class QuestionToSQLApp:
 
         # 题目类型选择框
         tk.Label(root, text="题目类型:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.type_var = tk.StringVar(value="1")  # 默认选择题
-        tk.OptionMenu(root, self.type_var, "1", "2", "5").grid(row=0, column=1, padx=5, pady=5)
+        self.type_var = tk.StringVar(value="选择题")  # 默认选择题
+        self.type_mapping = {"选择题": "1", "判断题": "2", "主观题": "5"}  # 显示值和SQL值的映射
+        self.type_menu = tk.OptionMenu(root, self.type_var, *self.type_mapping.keys(), command=self.update_answer_frame)
+        self.type_menu.grid(row=0, column=1, padx=5, pady=5)
 
         # 题目文本输入框
         tk.Label(root, text="题目文本:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
@@ -24,8 +48,8 @@ class QuestionToSQLApp:
         self.answer_frame = tk.Frame(root)
         self.answer_frame.grid(row=2, column=1, padx=5, pady=5, sticky="w")
         self.answer_vars = {key: tk.BooleanVar() for key in "ABCD"}
-        for key, var in self.answer_vars.items():
-            tk.Checkbutton(self.answer_frame, text=key, variable=var).pack(side="left")
+        self.judgment_var = tk.StringVar(value="")  # 用于“对/错”单选
+        self.create_answer_frame("选择题")  # 默认创建选择题的答案框
 
         # 题目解析输入框
         tk.Label(root, text="题目解析:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
@@ -54,25 +78,47 @@ class QuestionToSQLApp:
         """设置状态栏信息"""
         self.status_label.config(text=f"状态: {message}")
 
+    def create_answer_frame(self, q_type_text):
+        """根据题目类型更新答案选择框"""
+        for widget in self.answer_frame.winfo_children():
+            widget.destroy()
+
+        if q_type_text == "选择题":
+            self.answer_vars = {key: tk.BooleanVar() for key in "ABCD"}
+            for key, var in self.answer_vars.items():
+                tk.Checkbutton(self.answer_frame, text=key, variable=var).pack(side="left")
+        elif q_type_text == "判断题":
+            self.judgment_var.set("")  # 重置单选框
+            tk.Radiobutton(self.answer_frame, text="对", variable=self.judgment_var, value="对").pack(side="left")
+            tk.Radiobutton(self.answer_frame, text="错", variable=self.judgment_var, value="错").pack(side="left")
+
+    def update_answer_frame(self, selected_type):
+        """更新答案选择框"""
+        self.create_answer_frame(selected_type)
+
     def parse_question(self):
         question_text = self.question_text.get("1.0", "end").strip()
         try:
-            q_type = self.type_var.get()
+            q_type_text = self.type_var.get()
+            q_type = self.type_mapping[q_type_text]  # 根据文字获取对应SQL值
+
             if q_type == "1":  # 选择题
                 q_type, question, options = process_question(question_text)
-            else:  # 判断题或主观题
+                answers = "".join([key for key, var in self.answer_vars.items() if var.get()])  # 拼接答案字符串
+            elif q_type == "2":  # 判断题
                 question = question_text
                 options = None
+                answers = self.judgment_var.get()  # 获取“对/错”单选答案
+                if not answers:
+                    raise ValueError("请选择“对”或“错”作为答案。")
+            else:  # 主观题
+                question = question_text
+                options = None
+                answers = ""  # 主观题没有明确答案
 
-            answers = "".join([key for key, var in self.answer_vars.items() if var.get()])  # 拼接答案字符串
             analysis = self.analysis_text.get("1.0", "end").strip()
 
-            if q_type == "1" and not answers:
-                raise ValueError("请选择至少一个答案。")
-            elif q_type in {"2", "5"} and len(answers) > 1:
-                raise ValueError("判断题和主观题只能选择一个答案。")
-
-            result = f"题目类型: {q_type}\n题目: {question}\n"
+            result = f"题目类型: {q_type_text}\n题目: {question}\n"
             if options:
                 result += f"选项: {options}\n"
             result += f"答案: {answers}\n解析: {analysis}"
@@ -116,6 +162,7 @@ class QuestionToSQLApp:
         self.analysis_text.delete("1.0", "end")
         for var in self.answer_vars.values():
             var.set(False)
+        self.judgment_var.set("")  # 重置“对/错”单选框
         self.result_text.config(state="normal")
         self.result_text.delete("1.0", "end")
         self.result_text.config(state="disabled")
