@@ -1,29 +1,8 @@
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import filedialog
 import re
-
-
-def process_question(question_text):
-    """解析选择题的题目文本"""
-    try:
-        question_match = re.search(r"^(.*?)\n\n", question_text, re.DOTALL)  # 匹配题目文本部分
-        options_match = re.findall(r"([A-Z]\.\s.*?)(?=\n[A-Z]\.|$)", question_text, re.DOTALL)  # 匹配选项
-
-        if not question_match or not options_match:
-            raise ValueError("无效的题目格式，必须包含题目和选项（A, B, C, D）。")
-
-        question = question_match.group(1).strip()
-        options = {}
-
-        for i, option in enumerate(options_match):
-            option_key = chr(65 + i)  # 转换为 A, B, C, D
-            option_value = re.sub(r"^[A-Z]\.\s", "", option).strip()
-            options[option_key] = option_value
-
-        return "1", question, options
-    except Exception as e:
-        raise ValueError(f"解析失败: {e}")
-
+import pyperclip  # 用于剪贴板操作
+from process_question import process_question
 
 class QuestionToSQLApp:
     def __init__(self, root):
@@ -58,13 +37,22 @@ class QuestionToSQLApp:
         tk.Button(root, text="插入", command=self.insert_sql).grid(row=4, column=1, padx=5, pady=5, sticky="w")
         tk.Button(root, text="清除", command=self.clear_inputs).grid(row=4, column=1, padx=5, pady=5, sticky="e")
         tk.Button(root, text="完成", command=self.save_sql).grid(row=4, column=2, padx=5, pady=5)
+        tk.Button(root, text="复制", command=self.copy_to_clipboard).grid(row=4, column=3, padx=5, pady=5)
 
         # 解析结果显示框
         tk.Label(root, text="解析结果:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
         self.result_text = tk.Text(root, height=10, width=60, state="disabled")
         self.result_text.grid(row=5, column=1, padx=5, pady=5)
 
+        # 状态栏
+        self.status_label = tk.Label(root, text="状态: 就绪", anchor="w", relief="sunken")
+        self.status_label.grid(row=6, column=0, columnspan=2, sticky="we")
+
         self.sql_statements = []
+
+    def set_status(self, message):
+        """设置状态栏信息"""
+        self.status_label.config(text=f"状态: {message}")
 
     def parse_question(self):
         question_text = self.question_text.get("1.0", "end").strip()
@@ -91,8 +79,9 @@ class QuestionToSQLApp:
             self.show_result(result)
 
             self.sql_data = (q_type, question, options, answers, analysis)
+            self.set_status("题目解析成功！")
         except Exception as e:
-            messagebox.showerror("解析失败", str(e))
+            self.set_status(f"解析失败: {e}")
 
     def show_result(self, result):
         self.result_text.config(state="normal")
@@ -102,7 +91,7 @@ class QuestionToSQLApp:
 
     def insert_sql(self):
         if not hasattr(self, "sql_data"):
-            messagebox.showwarning("警告", "请先解析题目！")
+            self.set_status("请先解析题目！")
             return
 
         q_type, question, options, answers, analysis = self.sql_data
@@ -120,7 +109,7 @@ class QuestionToSQLApp:
             f"'{a}', '{b}', '{c}', '{d}', '{answers}', '{analysis}');"
         )
         self.sql_statements.append(sql)
-        messagebox.showinfo("成功", "插入SQL语句成功！")
+        self.set_status("SQL语句插入成功！")
 
     def clear_inputs(self):
         self.question_text.delete("1.0", "end")
@@ -130,17 +119,27 @@ class QuestionToSQLApp:
         self.result_text.config(state="normal")
         self.result_text.delete("1.0", "end")
         self.result_text.config(state="disabled")
+        self.set_status("输入已清空！")
 
     def save_sql(self):
         if not self.sql_statements:
-            messagebox.showwarning("警告", "没有可保存的SQL语句！")
+            self.set_status("没有可保存的SQL语句！")
             return
 
         file_path = filedialog.asksaveasfilename(defaultextension=".sql", filetypes=[("SQL文件", "*.sql")])
         if file_path:
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write("\n".join(self.sql_statements))
-            messagebox.showinfo("成功", "SQL语句已保存！")
+            self.set_status("SQL语句已保存！")
+
+    def copy_to_clipboard(self):
+        if not self.sql_statements:
+            self.set_status("没有可复制的SQL语句！")
+            return
+
+        sql_text = "\n".join(self.sql_statements)
+        pyperclip.copy(sql_text)
+        self.set_status("SQL语句已复制到剪贴板！")
 
 
 if __name__ == "__main__":
