@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题目转SQL工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+        .row {
+            margin-bottom: 15px;
+        }
+        .row label {
+            display: block;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+        }
+        .status {
+            margin-top: 20px;
+            font-weight: bold;
+            color: green;
+        }
+        .button-group button {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>题目转SQL工具</h1>
+
+    <!-- 题目类型选择 -->
+    <div class="row">
+        <label for="type">题目类型:</label>
+        <select id="type" onchange="updateAnswerOptions()">
+            <option value="1">选择题</option>
+            <option value="2">判断题</option>
+            <option value="5">主观题</option>
+        </select>
+    </div>
+
+    <!-- 题目文本输入框 -->
+    <div class="row">
+        <label for="question">题目文本:</label>
+        <textarea id="question"></textarea>
+    </div>
+
+    <!-- 答案选择框 -->
+    <div class="row">
+        <label>答案:</label>
+        <div id="answer-options"></div>
+    </div>
+
+    <!-- 题目解析输入框 -->
+    <div class="row">
+        <label for="analysis">题目解析:</label>
+        <textarea id="analysis"></textarea>
+    </div>
+
+    <!-- 按钮组 -->
+    <div class="row button-group">
+        <button onclick="parseQuestion()">解析</button>
+        <button onclick="insertSQL()">插入</button>
+        <button onclick="clearInputs()">清除</button>
+        <button onclick="saveSQL()">完成</button>
+        <button onclick="copySQL()">复制</button>
+    </div>
+
+    <!-- 解析结果显示框 -->
+    <div class="row">
+        <label>解析结果:</label>
+        <textarea id="result" readonly></textarea>
+    </div>
+
+    <!-- 状态栏 -->
+    <div id="status" class="status">状态: 就绪</div>
+</div>
+
+<script>
+let sqlStatements = [];
+
+function setStatus(message) {
+    document.getElementById('status').textContent = `状态: ${message}`;
+}
+
+function updateAnswerOptions() {
+    const type = document.getElementById('type').value;
+    const answerOptions = document.getElementById('answer-options');
+    answerOptions.innerHTML = '';
+
+    if (type === '1') { // 选择题
+        ['A', 'B', 'C', 'D'].forEach(option => {
+            const label = document.createElement('label');
+            label.textContent = option;
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = option;
+
+            label.prepend(checkbox);
+            answerOptions.appendChild(label);
+        });
+    } else if (type === '2') { // 判断题
+        ['对', '错'].forEach(option => {
+            const label = document.createElement('label');
+            label.textContent = option;
+
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'judgment';
+            radio.value = option;
+
+            label.prepend(radio);
+            answerOptions.appendChild(label);
+        });
+    }
+}
+
+function parseQuestion() {
+    try {
+        const type = document.getElementById('type').value;
+        const questionText = document.getElementById('question').value.trim();
+        const analysis = document.getElementById('analysis').value.trim();
+
+        let answers = '';
+        if (type === '1') { // 选择题
+            answers = Array.from(document.querySelectorAll('#answer-options input[type="checkbox"]:checked'))
+                .map(input => input.value)
+                .join('');
+        } else if (type === '2') { // 判断题
+            const selected = document.querySelector('#answer-options input[type="radio"]:checked');
+            if (!selected) throw new Error('请选择“对”或“错”作为答案。');
+            answers = selected.value;
+        }
+
+        const result = `题目类型: ${type}\n题目: ${questionText}\n答案: ${answers}\n解析: ${analysis}`;
+        document.getElementById('result').value = result;
+
+        setStatus('题目解析成功！');
+    } catch (error) {
+        setStatus(`解析失败: ${error.message}`);
+    }
+}
+
+function insertSQL() {
+    const type = document.getElementById('type').value;
+    const questionText = document.getElementById('question').value.trim();
+    const analysis = document.getElementById('analysis').value.trim();
+
+    let answers = '';
+    let a = 'NULL', b = 'NULL', c = 'NULL', d = 'NULL';
+
+    if (type === '1') { // 选择题
+        const selectedOptions = Array.from(document.querySelectorAll('#answer-options input[type="checkbox"]:checked'));
+        answers = selectedOptions.map(input => input.value).join('');
+        const options = ['A', 'B', 'C', 'D'];
+        options.forEach((opt, index) => {
+            const checkbox = selectedOptions.find(input => input.value === opt);
+            if (checkbox) {
+                if (index === 0) a = '"选项A"';
+                if (index === 1) b = '"选项B"';
+            }
+        });
+    }
+}
