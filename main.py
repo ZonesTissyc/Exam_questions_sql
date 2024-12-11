@@ -146,7 +146,7 @@ class QuestionToSQLApp:
         if options:
             a, b, c, d = options.get("A", "NULL"), options.get("B", "NULL"), options.get("C", "NULL"), options.get("D", "NULL")
         else:
-            a, b, c, d = "NULL", "NULL", "NULL", "NULL"
+            a, b, c, d = "", "", "", ""
 
         # 构造SQL插入语句
         sql = (
