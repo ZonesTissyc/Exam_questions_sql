@@ -128,7 +128,7 @@ class QuestionToSQLApp:
 
         # 连接数据库，查看是否存在表，没有则创建
 
-        conn = sqlite3.connect("local_database.db")
+        conn = sqlite3.connect("sqls/local_database.db")
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS questions (
@@ -148,7 +148,7 @@ class QuestionToSQLApp:
         
         # 数据库连接
         try:
-            conn = sqlite3.connect("local_database.db")  # 本地 SQLite 数据库文件
+            conn = sqlite3.connect("sqls/local_database.db")  # 本地 SQLite 数据库文件
 
             cursor = conn.cursor()
 
