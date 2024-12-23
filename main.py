@@ -1,11 +1,9 @@
 import tkinter as tk
 from tkinter import filedialog
+import sqlite3
 import re
 import pyperclip  # 用于剪贴板操作
 from process_question import process_question  # 导入解析函数
-
-
-
 
 
 class QuestionToSQLApp:
@@ -53,8 +51,6 @@ class QuestionToSQLApp:
         # 状态栏
         self.status_label = tk.Label(root, text="状态: 就绪", anchor="w", relief="sunken")
         self.status_label.grid(row=6, column=0, columnspan=2, sticky="we")
-
-        self.sql_statements = []
 
     def set_status(self, message):
         """设置状态栏信息"""
@@ -130,14 +126,48 @@ class QuestionToSQLApp:
         else:
             a, b, c, d = "", "", "", ""
 
-        # 构造SQL插入语句
-        sql = (
-            f"INSERT INTO questions (type, question, A, B, C, D, answer, analysis) "
-            f"VALUES ('{q_type}', '{question}', "
-            f"'{a}', '{b}', '{c}', '{d}', '{answers}', '{analysis}');"
-        )
-        self.sql_statements.append(sql)
-        self.set_status("SQL语句插入成功！")
+        # 连接数据库，查看是否存在表，没有则创建
+
+        conn = sqlite3.connect("local_database.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            question TEXT NOT NULL,
+            A TEXT,
+            B TEXT,
+            C TEXT,
+            D TEXT,
+            answer TEXT,
+            analysis TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+        
+        # 数据库连接
+        try:
+            conn = sqlite3.connect("local_database.db")  # 本地 SQLite 数据库文件
+
+            cursor = conn.cursor()
+
+            # 插入数据
+            sql = (
+                "INSERT INTO questions (type, question, A, B, C, D, answer, analysis) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            )
+            cursor.execute(sql, (q_type, question, a, b, c, d, answers, analysis))
+
+
+            conn.commit()
+            self.set_status("数据成功插入数据库！")
+        except sqlite3.connector.Error as err:
+            self.set_status(f"数据库错误: {err}")
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
 
     def clear_inputs(self):
         self.question_text.delete("1.0", "end")
@@ -151,24 +181,10 @@ class QuestionToSQLApp:
         self.set_status("输入已清空！")
 
     def save_sql(self):
-        if not self.sql_statements:
-            self.set_status("没有可保存的SQL语句！")
-            return
-
-        file_path = filedialog.asksaveasfilename(defaultextension=".sql", filetypes=[("SQL文件", "*.sql")])
-        if file_path:
-            with open(file_path, "w", encoding="utf-8") as file:
-                file.write("\n".join(self.sql_statements))
-            self.set_status("SQL语句已保存！")
+        self.set_status("此功能未启用，因为数据已直接插入数据库！")
 
     def copy_to_clipboard(self):
-        if not self.sql_statements:
-            self.set_status("没有可复制的SQL语句！")
-            return
-
-        sql_text = "\n".join(self.sql_statements)
-        pyperclip.copy(sql_text)
-        self.set_status("SQL语句已复制到剪贴板！")
+        self.set_status("此功能未启用，因为数据已直接插入数据库！")
 
 
 if __name__ == "__main__":
